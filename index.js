@@ -119,17 +119,35 @@ server.post('/status', async (req, res) => {
     }
     const whatTime = Date.now();
     await db.collection('participants').updateOne(
-         user, { $set: { name:req.headers.user, lastStatus: whatTime}});
+        user, { $set: { name: req.headers.user, lastStatus: whatTime } });
     res.status(200).send(user);
 
 });
-setInterval(offilineParticipants,15000);
-function offilineParticipants(){
+setInterval(offilineParticipants, 15000);
+
+async function offilineParticipants() {
     const whatTime = Date.now();
+    const hours = dayjs().format('HH:mm:ss')
     console.log(whatTime);
 
-    // percorrer todo o array e ver quem tem menos que um tempao na sala
-    db.collection("participants").find().toArray()
+    const participantsOn = await db.collection("participants").find().toArray();
+    console.log('participantsOn : ', participantsOn)
+    participantsOn.forEach((item) => {
+        if (!item.lastStatus) {
+            db.collection('participants').deleteOne({ name: item.name })
+        }
+        if (item.lastStatus < whatTime - 10000) {
+            db.collection('messages').insertOne(
+                {
+                    from: item.name,
+                    to: 'Todos',
+                    text: 'sai da sala...',
+                    type: 'status',
+                    time: hours
+                });
+            db.collection('participants').deleteOne({ lastStatus: item.lastStatus })
+        }
+    });
 }
 
 console.log("I'm run here");
