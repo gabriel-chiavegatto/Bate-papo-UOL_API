@@ -60,14 +60,54 @@ server.post('/participants', async (req, res) => {
 
 
 server.get('/participants', (req, res) => {
-    console.log('tentando buscar as mensagens');
     db.collection("participants").find().toArray().then(lista => {
-        console.log('achei a colleçao, toma ai', lista)
         res.status(200).send(lista);
     });
-
 });
 
+
+server.post('/messages', (req, res) => {
+    const message = req.body;
+    const usuario = req.headers.user;
+    const userSchema = joi.object({
+        to: joi.string().required(),
+        text: joi.string().required(),
+        type: joi.string().required(),
+    })
+    const validationMessage = userSchema.validate(message);
+    if(validationMessage.error){
+        res.status(422).send();
+        return
+    }
+    if(message.type !== 'message' && message.type !== 'private_message'){
+        res.status(422).send();
+        return
+    }
+    const timeNow = dayjs().format("HH:mm:ss");
+    const toSubmit = {
+        from: usuario,
+        to: message.to,
+        text: message.text,
+        type: message.type,
+        time: timeNow
+    }
+    db.collection('messages').insertOne(toSubmit)
+    res.status(201).send(toSubmit);
+});
+
+
+server.get('/messages', (req,res)=>{
+    const userOnline = req.headers.user;
+    db.collection('messages').find().toArray().then(lista=>{
+        // filtrar só msgs para todos ou para o usuário em questão
+        const filtred = lista.filter(item=>{
+            let toRender = false;
+            if(item.to === "Todos" || item.to===userOnline){
+                toRender = true;
+            } return toRender
+        });
+        res.send(filtred)});
+});
 
 
 console.log("I'm run here");
