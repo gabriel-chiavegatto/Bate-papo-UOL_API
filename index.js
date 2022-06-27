@@ -20,40 +20,52 @@ client.connect().then(() => {
 server.post('/participants', async (req, res) => {
 
     const user = req.body;
-    console.log(user);
-    const userSchema = joi.object({
-        name: joi.string().required()
-    });
-    const validation = userSchema.validate(user);
-    console.log('sou a validation: ', validation)
+    const doubleName = await db.collection('participants').findOne({ name: user.name });
 
-    if (validation.error) {
-        res.sendStatus(422);
-        return
-    }
-    const dateNow = Date.now();
-    console.log("datenow : ", dateNow);
-    const userLogin = {
-        name: user.name,
-        lastStatus: dateNow
-    }
-    const date = dayjs().format('HH:mm:ss');
-    console.log("horario: ", date)
-    const loginMessage = {
-        from: user.name,
-        to: 'Todos',
-        text: 'entra na sala...',
-        type: 'status',
-        time: date
-    }
+    if (doubleName) {
+        res.sendStatus(409);
+        return;
+    } else {
 
-    try {
-        await db.collection('participants').insertOne(userLogin)
-        res.status(201).send();
-        await db.collection('messages').insertOne(loginMessage)
-    } catch (error) {
-        console.log('detalhes do erro: ', error);
-        res.sendStatus(422);
+
+
+        console.log(user);
+        const userSchema = joi.object({
+            name: joi.string().required()
+        });
+        const validation = userSchema.validate(user);
+        console.log('sou a validation: ', validation)
+
+        if (validation.error) {
+            res.sendStatus(422);
+            return
+        }
+
+
+        const dateNow = Date.now();
+        console.log("datenow : ", dateNow);
+        const userLogin = {
+            name: user.name,
+            lastStatus: dateNow
+        }
+        const date = dayjs().format('HH:mm:ss');
+        console.log("horario: ", date)
+        const loginMessage = {
+            from: user.name,
+            to: 'Todos',
+            text: 'entra na sala...',
+            type: 'status',
+            time: date
+        }
+
+        try {
+            await db.collection('participants').insertOne(userLogin)
+            res.status(201).send();
+            await db.collection('messages').insertOne(loginMessage)
+        } catch (error) {
+            console.log('detalhes do erro: ', error);
+            res.sendStatus(422);
+        }
     }
 
 });
