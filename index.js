@@ -32,13 +32,13 @@ server.post('/participants', async (req, res) => {
         return
     }
     const dateNow = Date.now();
-    console.log("datenow : ",dateNow);
+    console.log("datenow : ", dateNow);
     const userLogin = {
         name: user.name,
         lastStatus: dateNow
     }
     const date = dayjs().format('HH:mm:ss');
-    console.log("horario: ",date)
+    console.log("horario: ", date)
     const loginMessage = {
         from: user.name,
         to: 'Todos',
@@ -75,11 +75,11 @@ server.post('/messages', (req, res) => {
         type: joi.string().required(),
     })
     const validationMessage = userSchema.validate(message);
-    if(validationMessage.error){
+    if (validationMessage.error) {
         res.status(422).send();
         return
     }
-    if(message.type !== 'message' && message.type !== 'private_message'){
+    if (message.type !== 'message' && message.type !== 'private_message') {
         res.status(422).send();
         return
     }
@@ -92,23 +92,45 @@ server.post('/messages', (req, res) => {
         time: timeNow
     }
     db.collection('messages').insertOne(toSubmit)
-    res.status(201).send(toSubmit);
+    res.status(201).send();
 });
 
 
-server.get('/messages', (req,res)=>{
+server.get('/messages', (req, res) => {
     const userOnline = req.headers.user;
-    db.collection('messages').find().toArray().then(lista=>{
+    db.collection('messages').find().toArray().then(lista => {
         // filtrar só msgs para todos ou para o usuário em questão
-        const filtred = lista.filter(item=>{
+        const filtred = lista.filter(item => {
             let toRender = false;
-            if(item.to === "Todos" || item.to===userOnline){
+            if (item.to === "Todos" || item.to === userOnline) {
                 toRender = true;
             } return toRender
         });
-        res.send(filtred)});
+        res.send(filtred)
+    });
 });
 
+server.post('/status', async (req, res) => {
+    console.log(req.headers.user);
+    const user = await db.collection('participants').findOne({ name: req.headers.user });
+    console.log(user);
+    if (!user) {
+        res.status(404).send('voce não esta no banco de dados');
+    }
+    const whatTime = Date.now();
+    await db.collection('participants').updateOne(
+         user, { $set: { name:req.headers.user, lastStatus: whatTime}});
+    res.status(200).send(user);
+
+});
+setInterval(offilineParticipants,15000);
+function offilineParticipants(){
+    const whatTime = Date.now();
+    console.log(whatTime);
+
+    // percorrer todo o array e ver quem tem menos que um tempao na sala
+    db.collection("participants").find().toArray()
+}
 
 console.log("I'm run here");
 server.listen(5001);
