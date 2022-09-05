@@ -47,12 +47,55 @@ server.post('/participants', async (req, res) => {
         res.sendStatus(503)
     }
 });
-server.get("/participants", async(req, res) => {
-    try{
+
+server.get("/participants", async (req, res) => {
+    try {
         const participantsList = await db.collection('participants').find().toArray();
         res.status(200).send(participantsList)
-    }catch{
+    } catch {
         res.sendStatus(503)
+    }
+});
+
+server.post("/messages", async (req, res) => {
+    try {
+        const { user } = req.headers;
+        const userOnDB = await db.collection("participants").findOne({ name: user });
+        if (!userOnDB) { res.sendStatus(422); return }
+
+        const message = req.body;
+        const messageSchema = joi.object({
+            to: joi.string().required(),
+            text: joi.string().required(),
+            type: joi.string().required(),
+        });
+        const validationMessage = messageSchema.validate(message);
+
+        if (validationMessage.error || (message.type !== 'message' && message.type !== 'private_message')) {
+            res.sendStatus(422); return;
+        }
+
+        const messageTime = dayjs().format("HH:mm:ss");
+        const toSaveOnDB = {
+            from: user,
+            to: message.to,
+            text: message.text,
+            type: message.type,
+            time: messageTime
+        };
+        await db.collection('messages').insertOne(toSaveOnDB)
+        res.sendStatus(201)
+    } catch {
+        res.sendStatus(503);
+    }
+});
+
+server.get("/messages", async (req, res) => {
+    try {
+        const allMessages = await db.collection('messages').find().toArray();
+        res.status(200).send(allMessages);
+    } catch {
+        res.status(422)
     }
 });
 
