@@ -2,7 +2,7 @@ import express, { application, json } from 'express';
 import cors from 'cors';
 import dotenv from "dotenv";
 import joi from "joi";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import dayjs from 'dayjs';
 
 const server = express();
@@ -92,7 +92,7 @@ server.post("/messages", async (req, res) => {
 
 server.get("/messages", async (req, res) => {
     const { user } = req.headers;
-    const {limit} = req.query;
+    const { limit } = req.query;
     try {
         const allMessages = await db.collection('messages').find().toArray();
         const filtredMessages = allMessages.filter(msg => {
@@ -102,33 +102,54 @@ server.get("/messages", async (req, res) => {
                 return false
             }
         });
-        if(limit){
+        if (limit) {
             const page = filtredMessages.slice(-limit);
             res.status(200).send(page);
             return;
         }
         res.status(200).send(filtredMessages);
-    } catch(error) {
+    } catch (error) {
         console.log(error);
         res.status(422)
     }
 });
 
-server.post('/status', async(req,res)=>{
-    const {user} = req.headers;
-    try{
-        const confirmParticiant = await db.collection('participants').findOne({name:user});
-        if(!confirmParticiant){
+server.post('/status', async (req, res) => {
+    const { user } = req.headers;
+    try {
+        const confirmParticiant = await db.collection('participants').findOne({ name: user });
+        if (!confirmParticiant) {
             res.sendStatus(404);
             return
         }
-        const timeNow = Date.now();
-        await db.collection('participants').updateOne(confirmParticiant,{$set: {lastStatus: timeNow}});
+        const dateNow = Date.now();
+        await db.collection('participants').updateOne(confirmParticiant, { $set: { lastStatus: dateNow } });
         res.sendStatus(200);
 
-    }catch{
+    } catch {
         res.sendStatus(422);
     }
 });
 
+async function offlineParticipants() {
+    console.log("try this")
+    const dateNow = Date.now();
+    const hours = dayjs().format('HH:mm:ss');
+
+    const participantsOnline = await db.collection("participants").find().toArray();
+    participantsOnline.forEach(people => {
+        if (people.lastStatus < (dateNow - 10000)) {
+            db.collection('participants').deleteOne({ _id: ObjectId(people._id) });
+            db.collection("messages").insertOne({
+                from: people.name,
+                to: 'Todos',
+                text: 'sai da sala...',
+                type: 'status',
+                time: hours
+            });
+        }
+    });
+}
+
+setInterval(offlineParticipants, 15000);
 server.listen(process.env.PORT, () => { console.log("Server ON") });
