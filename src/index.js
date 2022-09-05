@@ -31,7 +31,7 @@ server.post('/participants', async (req, res) => {
             name,
             lastStatus: dateNow
         }
-        const hour  = dayjs().format('HH:mm:ss');
+        const hour = dayjs().format('HH:mm:ss');
         const loginMessage = {
             from: name,
             to: 'Todos',
@@ -44,9 +44,16 @@ server.post('/participants', async (req, res) => {
         res.sendStatus(201)
 
     } catch (error) {
-        res.sendStatus(420)
+        res.sendStatus(503)
     }
 });
-
+server.get("/participants", async(req, res) => {
+    try{
+        const participantsList = await db.collection('participants').find().toArray();
+        res.status(200).send(participantsList)
+    }catch{
+        res.sendStatus(503)
+    }
+});
 
 server.listen(process.env.PORT, () => { console.log("Server ON") });
