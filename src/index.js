@@ -91,11 +91,43 @@ server.post("/messages", async (req, res) => {
 });
 
 server.get("/messages", async (req, res) => {
+    const { user } = req.headers;
+    const {limit} = req.query;
     try {
         const allMessages = await db.collection('messages').find().toArray();
-        res.status(200).send(allMessages);
-    } catch {
+        const filtredMessages = allMessages.filter(msg => {
+            if (msg.to === "Todos" || msg.to === user) {
+                return true
+            } else {
+                return false
+            }
+        });
+        if(limit){
+            const page = filtredMessages.slice(-limit);
+            res.status(200).send(page);
+            return;
+        }
+        res.status(200).send(filtredMessages);
+    } catch(error) {
+        console.log(error);
         res.status(422)
+    }
+});
+
+server.post('/status', async(req,res)=>{
+    const {user} = req.headers;
+    try{
+        const confirmParticiant = await db.collection('participants').findOne({name:user});
+        if(!confirmParticiant){
+            res.sendStatus(404);
+            return
+        }
+        const timeNow = Date.now();
+        await db.collection('participants').updateOne(confirmParticiant,{$set: {lastStatus: timeNow}});
+        res.sendStatus(200);
+
+    }catch{
+        res.sendStatus(422);
     }
 });
 
